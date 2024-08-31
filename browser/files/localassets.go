@@ -277,27 +277,34 @@ func (la *LocalAssetBrowser) assetFromFile(fsys fs.FS, name string) (*browser.Lo
 		fullPath = filepath.Join(fsys.Name(), name)
 	}
 
-	a.Metadata.DateTaken = metadata.TakeTimeFromPath(fullPath)
-
+	// Filesize
 	i, err := fs.Stat(fsys, name)
 	if err != nil {
 		return nil, err
 	}
 	a.FileSize = int(i.Size())
-	if a.Metadata.DateTaken.IsZero() {
-		err = la.ReadMetadataFromFile(a)
-		if err != nil {
-			return nil, err
-		}
+
+	// Date taken
+	err = la.ReadMetadataFromFile(a)
+	if err != nil {
+		return nil, err
+	}
+	if !a.Metadata.DateTaken.IsZero() {
 		if a.Metadata.DateTaken.Before(toOldDate) {
-			switch la.whenNoDate {
-			case "FILE":
-				a.Metadata.DateTaken = i.ModTime()
-			case "NOW":
-				a.Metadata.DateTaken = time.Now()
+			a.Metadata.DateTaken = metadata.TakeTimeFromPath(fullPath)
+			if a.Metadata.DateTaken.IsZero() {
+				switch la.whenNoDate {
+				case "FILE":
+					a.Metadata.DateTaken = i.ModTime()
+				case "NOW":
+					a.Metadata.DateTaken = time.Now()
+				}
 			}
 		}
+	} else {
+		a.Metadata.DateTaken = metadata.TakeTimeFromPath(fullPath)
 	}
+
 	return a, nil
 }
 
